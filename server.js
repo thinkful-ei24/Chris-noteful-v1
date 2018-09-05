@@ -1,9 +1,14 @@
 'use strict';
 
 // Load array of notes
+
 const express = require('express');
 
 const data = require('./db/notes');
+
+const simDB = require('./db/simDB');
+
+const notes = simDB.initialize(data);
 
 const {PORT} = require('./config');
 
@@ -12,24 +17,60 @@ const logger = require('./middleware/logger');
 const app = express();
 
 // ADD STATIC SERVER HERE
+app.use(express.static('public'));
+
 app.use(logger);
 
 app.use(express.json());
 
-app.get('/api/notes', (req, res) => {
-  const query = req.query;
-  let list = data;
-  console.log(query);
-  if (query.searchTerm){
-    list = list.filter(item => item.title.includes(query.searchTerm) || item.content.includes(query.searchTerm));
-    return res.json(list);
-  }
-  return res.json(data);
+
+app.get('/api/notes', (req, res, next) => {
+  const { searchTerm } = req.query;
+
+  notes.filter(searchTerm, (err, list) => {
+    if (err) {
+      return next(err); // goes to error handler
+    }
+    res.json(list); // responds with filtered array
+  });
 });
 
-app.get('/api/notes/:id', (req, res) => {
-  const foundItem = data.find(item => item.id === Number(req.params.id));
-  return res.json(foundItem);
+app.get('/api/notes/:id', (req, res, next) => {
+  const id = req.params.id;
+  notes.find(id, (err, item) => {
+    if (err) {
+      return next(err);
+    } if(item) {
+      res.json(item);
+    } else {
+      next();
+    }
+  });
+});
+
+app.put('/api/notes/:id', (req, res, next) => {
+  const id = req.params.id;
+  
+  const updateObj = {};
+  const updateFields = ['title', 'content'];
+
+  updateFields.forEach(field => {
+    if (field in req.body) {
+      updateObj[field] = req.body[field];
+    }
+  });
+
+  notes.update(id, updateObj, (err, item) => {
+    if (err){
+      return next(err);
+    }
+    if (item) {
+      res.json(item);
+    }
+    else {
+      next();
+    }
+  });
 });
 
 app.use(function (req, res, next) {
