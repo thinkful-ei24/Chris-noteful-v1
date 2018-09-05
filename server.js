@@ -5,11 +5,16 @@ const express = require('express');
 
 const data = require('./db/notes');
 
-const {port} = require('./config');
+const {PORT} = require('./config');
+
+const logger = require('./middleware/logger');
 
 const app = express();
 
 // ADD STATIC SERVER HERE
+app.use(logger);
+
+app.use(express.json());
 
 app.get('/api/notes', (req, res) => {
   const query = req.query;
